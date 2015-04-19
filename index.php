@@ -1,7 +1,7 @@
 <?php
 class testApp{
     public function test(){
-    	echo 'just a test file';
+    	echo 'sjust a test file';
     }
  	   
 }
