@@ -66,20 +66,29 @@ class wechatCallbackapiTest
          if(!empty( $keyword )){
                 $msgType = "text";
              	
+             	## 预处理接受不到表情的情况
+                 /*
+                    if($msgType != "text") { 
+                        $contentStr = "小明准备加班到天亮来完善这部分东西";
+                    
+                        $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgType, $contentStr);
+                        echo $resultStr;
+                    }
+                  */
              	## 对输入的内容进行处理
              	 $word = mb_substr(trim($keyword),-2,2,"UTF-8");
              	 $num = mb_strlen($keyword, 'UTF8')-2;
              	 $plac = mb_substr(trim($keyword),0,$num,"UTF-8");
              	switch($word)
                     {
-                    	case '常明':
-                     		$contentStr = '请叫我官人';break;
+                    	case '歌词':
+                     		$contentStr = $this->autoChat($plac);break;
                      	case '天气':
                     		//$contentStr = $keyword;break;
                     		$contentStr = $this->weather($word,$plac);break;
                      	default:
                      		//$contentStr = $word;
-                     		$contentStr = $this->autoChat($keyword);break;
+                     		$contentStr = $this->chickChat($keyword);break;
                     }
              	
            }else{
@@ -89,32 +98,6 @@ class wechatCallbackapiTest
          
          $resultStr = sprintf($textTpl, $fromUsername, $toUsername, $time, $msgType, $contentStr);
          echo $resultStr;
-    }
-    
-    
-    ## 自动聊天
-    public function autoChat($keyword){
-        $now = array();     
-        mysql_connect(SAE_MYSQL_HOST_M .':'. SAE_MYSQL_PORT, SAE_MYSQL_USER, SAE_MYSQL_PASS) or die('cannot connect server');
-        mysql_select_db("app_moses") or die('databases is error');
-        $rst= mysql_query( "select * from moses where msg like '%{$keyword}%'order by id asc limit 30");
-        mysql_query('set names utf-8');
-        
-        $i = 0;
-        while($rt = mysql_fetch_array($rst)){
-            $song = str_replace(strstr($rt['msg'], '@'),'',$rt['msg']);
-            $now[$i++] = $song.']';
-        }
-        
-        $nums = count($now);
-        $num = rand(0,$nums);
-        if( $nums > 0) {
-            $contentStr= $now[$num];
-        } else {
-            $contentStr='曾经沧海难为水,直到膝盖中了箭.';
-        }
-        
-        return $contentStr;
     }
     
     ## 地方天气
@@ -142,6 +125,61 @@ class wechatCallbackapiTest
         return $contentStr;
     }
     
+    ## 自动聊天
+    public function autoChat($keyword){
+        $now = array();     
+        mysql_connect(SAE_MYSQL_HOST_M .':'. SAE_MYSQL_PORT, SAE_MYSQL_USER, SAE_MYSQL_PASS) or die('cannot connect server');
+        mysql_select_db("app_moses") or die('databases is error');
+        $rst= mysql_query( "select * from moses where msg like '%{$keyword}%'order by id asc limit 30");
+        mysql_query('set names utf-8');
+        
+        $i = 0;
+        while($rt = mysql_fetch_array($rst)){
+            $song = str_replace(strstr($rt['msg'], '@'),'',$rt['msg']);
+            $now[$i++] = $song.']';
+        }
+        
+        $nums = count($now);
+        $num = rand(0,$nums);
+        if( $nums > 0) {
+            $contentStr= $now[$num];
+        } else {
+            $contentStr='曾经沧海难为水,直到膝盖中了箭.';
+        }
+        
+        return $contentStr;
+    }
+    
+    ## 图灵聊天
+    public function chickChat($keyword){
+        
+        $apiKey = "236aa55332813daeec46f7c00fa1f070"; 
+        $apiURL = "http://www.tuling123.com/openapi/api?key=KEY&info=INFO";
+        
+        // 设置报文头, 构建请求报文 
+        header("Content-type: text/html; charset=utf-8"); 
+        $reqInfo = $keyword; 
+        $url = str_replace("INFO", $reqInfo, str_replace("KEY", $apiKey, $apiURL)); 
+        
+        /** 方法一、用file_get_contents 以get方式获取内容 */ 
+        $contentStr = file_get_contents($url);
+        $js = json_decode($contentStr);
+        $contentStr = preg_replace("<br>","\n\r",$js->text);
+        
+        if(empty($js->text)) {
+        	$forme = array(
+                0 => '小明给你的温馨提示:好好学习,天天吃药',
+                1 => '世界这么大,我们一起去看看吧',
+                2 => '你可以怀疑任何人，但绝不要怀疑你自己'
+            );
+            
+            $contentStr = $forme[rand(0, count($forme))];
+        }
+        
+        return $contentStr;
+        
+    }
+    
     ## 推送事件
      public function handleEvent($object)
     {
@@ -149,7 +187,7 @@ class wechatCallbackapiTest
         switch ($object->Event)
         {
             case "subscribe":
-                $contentStr = "恭喜你已经关注成功："."\n[1]:查看天气情况请输入: \n'xx天气' 可查看xx地方的天气, \n如：'北京天气',即可查看北京的天气;\n[2]:想和小明聊天直接输入内容;";
+            $contentStr = "恭喜你已经关注成功："."\n[1]:查看天气情况请输入: \n'xx天气' 可查看xx地方的天气, \n如：'北京天气',即可查看北京的天气;\n[2]:查找歌词输入：\n'xxxx歌词' 可以查找到歌词;\n[3]:输入其他的内容小明会回复你.";
                 break;
             default :
                 $contentStr = "Unknow Event: ".$object->Event;
